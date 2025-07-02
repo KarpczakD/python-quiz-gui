@@ -1,6 +1,7 @@
 import tkinter as tk
 from tkinter import messagebox
 import re
+import random
 
 class QuizApp:
     def __init__(self, master, pytania):
@@ -56,7 +57,6 @@ class QuizApp:
         p = self.pytania[self.index]
         correct = p['answer']  # teraz lista indeksów
 
-        # porównujemy zaznaczone odpowiedzi z listą poprawnych (bez dodatkowych ani brakujących)
         if set(selected) == set(correct):
             self.score += 1
             messagebox.showinfo("Dobrze!", "Dobra odpowiedź! ✅")
@@ -101,11 +101,13 @@ def wczytaj_pytania(sciezka):
 
 if __name__ == "__main__":
     import sys
+
     if len(sys.argv) < 2:
         print("Użycie: python quiz_gui.py quiz.md")
         sys.exit(1)
 
     pytania = wczytaj_pytania(sys.argv[1])
+    random.shuffle(pytania)  # tasujemy pytania losowo
 
     root = tk.Tk()
     app = QuizApp(root, pytania)
