@@ -1,18 +1,37 @@
-# python-quiz-gui
+# Azure AZ-900 Quiz GUI App
 
-# AZ-900 Quiz
-
-This quiz is based on questions from the repository:  
-https://github.com/Ditectrev/Microsoft-Azure-AZ-900-Microsoft-Azure-Fundamentals-Practice-Tests-Exams-Questions-Answers
-
-The application was created to help prepare more easily for the Microsoft Azure AZ-900 – Microsoft Azure Fundamentals exam.
+This is a Python desktop application that allows you to study for the **Microsoft Azure AZ-900 certification exam** using quiz questions formatted in Markdown.  
+It features a **user-friendly GUI**, random question order, multi-answer support, live statistics, and a progress bar.
 
 ---
 
-## How to run
+## 📋 Features
 
-1. Download the questions file (e.g., `quiz.md`) from the repository above.  
-2. Run the GUI Python application:
+- ✅ Load questions from a `.md` file (Markdown format)
+- ✅ Support for multiple correct answers
+- ✅ Randomized question order
+- ✅ Live statistics showing:
+  - Correct answers
+  - Incorrect answers
+  - Total answered
+- ✅ Visual progress bar
+- ✅ Responsive interface (resizes nicely)
+- ✅ Immediate feedback for every question
 
-   ```bash
-   python quiz_gui.py quiz.md
+---
+
+## 🧠 Based on
+
+Questions are sourced from the following public repository:  
+🔗 [Ditectrev/Microsoft-Azure-AZ-900](https://github.com/Ditectrev/Microsoft-Azure-AZ-900-Microsoft-Azure-Fundamentals-Practice-Tests-Exams-Questions-Answers)
+
+---
+
+## ▶️ How to Run
+
+Make sure you have Python 3 installed.
+
+Then run the app using:
+
+```bash
+python quiz_gui.py path/to/your/quiz.md
