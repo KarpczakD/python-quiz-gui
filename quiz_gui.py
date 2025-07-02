@@ -13,12 +13,16 @@ class QuizApp:
         self.question_label = tk.Label(master, text="", wraplength=400, font=("Arial", 14))
         self.question_label.pack(pady=20)
 
-        self.var = tk.IntVar()
-        self.radio_buttons = []
-        for i in range(4):  # załóżmy max 4 odpowiedzi
-            rb = tk.Radiobutton(master, text="", variable=self.var, value=i, font=("Arial", 12))
-            rb.pack(anchor='w')
-            self.radio_buttons.append(rb)
+        self.vars = []  # lista zmiennych IntVar dla checkboxów
+        self.checkbuttons = []
+
+        # max 6 odpowiedzi, dajemy checkboxy
+        for i in range(6):
+            var = tk.IntVar()
+            cb = tk.Checkbutton(master, text="", variable=var, font=("Arial", 12))
+            cb.pack(anchor='w')
+            self.vars.append(var)
+            self.checkbuttons.append(cb)
 
         self.submit_button = tk.Button(master, text="Sprawdź odpowiedź", command=self.check_answer)
         self.submit_button.pack(pady=20)
@@ -33,28 +37,32 @@ class QuizApp:
 
         p = self.pytania[self.index]
         self.question_label.config(text=f"Pytanie {self.index+1}: {p['question']}")
-        self.var.set(-1)  # odznacz wszystkie
+
+        for var in self.vars:
+            var.set(0)  # odznacz wszystkie
 
         for i, opcja in enumerate(p['options']):
-            self.radio_buttons[i].config(text=opcja, state='normal')
-            self.radio_buttons[i].pack(anchor='w')
-        # ukryj nadmiarowe przyciski, jeśli mniej niż 4 odpowiedzi
-        for i in range(len(p['options']), 4):
-            self.radio_buttons[i].pack_forget()
+            self.checkbuttons[i].config(text=opcja, state='normal')
+            self.checkbuttons[i].pack(anchor='w')
+        for i in range(len(p['options']), 6):
+            self.checkbuttons[i].pack_forget()
 
     def check_answer(self):
-        wybor = self.var.get()
-        if wybor == -1:
-            messagebox.showwarning("Uwaga", "Wybierz odpowiedź!")
+        selected = [i for i, var in enumerate(self.vars) if var.get() == 1]
+        if not selected:
+            messagebox.showwarning("Uwaga", "Zaznacz przynajmniej jedną odpowiedź!")
             return
 
         p = self.pytania[self.index]
-        if wybor == p['answer']:
+        correct = p['answer']  # teraz lista indeksów
+
+        # porównujemy zaznaczone odpowiedzi z listą poprawnych (bez dodatkowych ani brakujących)
+        if set(selected) == set(correct):
             self.score += 1
             messagebox.showinfo("Dobrze!", "Dobra odpowiedź! ✅")
         else:
-            poprawna = p['options'][p['answer']]
-            messagebox.showinfo("Źle", f"Błędna odpowiedź! Poprawna to: {poprawna} ❌")
+            poprawne_odp = ", ".join([p['options'][i] for i in correct])
+            messagebox.showinfo("Źle", f"Błędna odpowiedź! Poprawne odpowiedzi to: {poprawne_odp} ❌")
 
         self.index += 1
         self.load_question()
@@ -72,7 +80,7 @@ def wczytaj_pytania(sciezka):
             continue
         pytanie = linie[0].lstrip('# ').strip()
         odpowiedzi = []
-        poprawna_idx = None
+        poprawna_idx = []
 
         for i, linia in enumerate(linie[1:]):
             m = re.match(r'- \[( |x)\] (.+)', linia)
@@ -81,7 +89,7 @@ def wczytaj_pytania(sciezka):
                 tekst_odp = m.group(2)
                 odpowiedzi.append(tekst_odp)
                 if zaznaczone:
-                    poprawna_idx = i
+                    poprawna_idx.append(i)
 
         pytania.append({
             "question": pytanie,
@@ -89,6 +97,7 @@ def wczytaj_pytania(sciezka):
             "answer": poprawna_idx
         })
     return pytania
+
 
 if __name__ == "__main__":
     import sys
