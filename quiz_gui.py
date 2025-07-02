@@ -9,15 +9,20 @@ class QuizApp:
         self.pytania = pytania
         self.index = 0
         self.score = 0
+        self.wrong = 0
+        self.answered = 0
 
         self.master.title("Quiz")
+
+        # Statystyki na górze
+        self.stats_label = tk.Label(master, text="", font=("Arial", 12), fg="blue")
+        self.stats_label.pack(pady=5)
+
         self.question_label = tk.Label(master, text="", wraplength=400, font=("Arial", 14))
         self.question_label.pack(pady=20)
 
-        self.vars = []  # lista zmiennych IntVar dla checkboxów
+        self.vars = []
         self.checkbuttons = []
-
-        # max 6 odpowiedzi, dajemy checkboxy
         for i in range(6):
             var = tk.IntVar()
             cb = tk.Checkbutton(master, text="", variable=var, font=("Arial", 12))
@@ -28,7 +33,13 @@ class QuizApp:
         self.submit_button = tk.Button(master, text="Sprawdź odpowiedź", command=self.check_answer)
         self.submit_button.pack(pady=20)
 
+        self.update_stats()
         self.load_question()
+
+    def update_stats(self):
+        self.stats_label.config(text=f"Poprawne odpowiedzi: {self.score}    "
+                                     f"Błędne odpowiedzi: {self.wrong}    "
+                                     f"Udzielone odpowiedzi: {self.answered} / {len(self.pytania)}")
 
     def load_question(self):
         if self.index >= len(self.pytania):
@@ -40,13 +51,15 @@ class QuizApp:
         self.question_label.config(text=f"Pytanie {self.index+1}: {p['question']}")
 
         for var in self.vars:
-            var.set(0)  # odznacz wszystkie
+            var.set(0)
 
         for i, opcja in enumerate(p['options']):
             self.checkbuttons[i].config(text=opcja, state='normal')
             self.checkbuttons[i].pack(anchor='w')
         for i in range(len(p['options']), 6):
             self.checkbuttons[i].pack_forget()
+
+        self.update_stats()
 
     def check_answer(self):
         selected = [i for i, var in enumerate(self.vars) if var.get() == 1]
@@ -55,12 +68,14 @@ class QuizApp:
             return
 
         p = self.pytania[self.index]
-        correct = p['answer']  # teraz lista indeksów
+        correct = p['answer']
 
+        self.answered += 1
         if set(selected) == set(correct):
             self.score += 1
             messagebox.showinfo("Dobrze!", "Dobra odpowiedź! ✅")
         else:
+            self.wrong += 1
             poprawne_odp = ", ".join([p['options'][i] for i in correct])
             messagebox.showinfo("Źle", f"Błędna odpowiedź! Poprawne odpowiedzi to: {poprawne_odp} ❌")
 
@@ -101,13 +116,14 @@ def wczytaj_pytania(sciezka):
 
 if __name__ == "__main__":
     import sys
+    import random
 
     if len(sys.argv) < 2:
         print("Użycie: python quiz_gui.py quiz.md")
         sys.exit(1)
 
     pytania = wczytaj_pytania(sys.argv[1])
-    random.shuffle(pytania)  # tasujemy pytania losowo
+    random.shuffle(pytania)
 
     root = tk.Tk()
     app = QuizApp(root, pytania)
