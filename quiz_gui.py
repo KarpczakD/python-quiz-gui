@@ -1,5 +1,5 @@
 import tkinter as tk
-from tkinter import messagebox
+from tkinter import messagebox, font
 import re
 import random
 
@@ -13,33 +13,60 @@ class QuizApp:
         self.answered = 0
 
         self.master.title("Quiz")
+        self.master.geometry("500x450")
+        self.master.configure(bg="#f0f4f8")
 
-        # Statystyki na górze
-        self.stats_label = tk.Label(master, text="", font=("Arial", 12), fg="blue")
-        self.stats_label.pack(pady=5)
+        # Czcionki
+        self.title_font = font.Font(family="Helvetica", size=16, weight="bold")
+        self.question_font = font.Font(family="Arial", size=14)
+        self.option_font = font.Font(family="Arial", size=12)
 
-        self.question_label = tk.Label(master, text="", wraplength=400, font=("Arial", 14))
-        self.question_label.pack(pady=20)
+        # Ramka na statystyki
+        stats_frame = tk.Frame(master, bg="#f0f4f8")
+        stats_frame.pack(pady=10)
+
+        self.stats_label = tk.Label(stats_frame, text="", font=("Helvetica", 12), fg="#333", bg="#f0f4f8")
+        self.stats_label.pack()
+
+        # Ramka na pytanie
+        question_frame = tk.Frame(master, bg="#f0f4f8", padx=10, pady=10)
+        question_frame.pack(fill='x')
+
+        self.question_label = tk.Label(question_frame, text="", wraplength=460, font=self.title_font, bg="#f0f4f8", fg="#222")
+        self.question_label.pack()
+
+        # Ramka na odpowiedzi
+        self.options_frame = tk.Frame(master, bg="#f0f4f8")
+        self.options_frame.pack(pady=10, fill='x')
 
         self.vars = []
         self.checkbuttons = []
+
         for i in range(6):
             var = tk.IntVar()
-            cb = tk.Checkbutton(master, text="", variable=var, font=("Arial", 12))
-            cb.pack(anchor='w')
+            cb = tk.Checkbutton(self.options_frame, text="", variable=var, font=self.option_font,
+                                bg="#ffffff", anchor='w', relief='groove', bd=2,
+                                activebackground="#dbe9ff", padx=10, pady=5,
+                                highlightthickness=0, selectcolor="#a8c0ff")
+            cb.pack(fill='x', pady=3, padx=20)
             self.vars.append(var)
             self.checkbuttons.append(cb)
 
-        self.submit_button = tk.Button(master, text="Sprawdź odpowiedź", command=self.check_answer)
-        self.submit_button.pack(pady=20)
+        # Przycisk
+        self.submit_button = tk.Button(master, text="Sprawdź odpowiedź", font=self.option_font,
+                                       bg="#4a90e2", fg="white", activebackground="#357ABD",
+                                       padx=10, pady=8, relief='flat', command=self.check_answer)
+        self.submit_button.pack(pady=15)
+
+        # Efekt hover na przycisku
+        self.submit_button.bind("<Enter>", lambda e: self.submit_button.config(bg="#357ABD"))
+        self.submit_button.bind("<Leave>", lambda e: self.submit_button.config(bg="#4a90e2"))
 
         self.update_stats()
         self.load_question()
 
     def update_stats(self):
-        self.stats_label.config(text=f"Poprawne odpowiedzi: {self.score}    "
-                                     f"Błędne odpowiedzi: {self.wrong}    "
-                                     f"Udzielone odpowiedzi: {self.answered} / {len(self.pytania)}")
+        self.stats_label.config(text=f"Poprawne: {self.score}    Błędne: {self.wrong}    Odpowiedzi: {self.answered} / {len(self.pytania)}")
 
     def load_question(self):
         if self.index >= len(self.pytania):
@@ -55,7 +82,7 @@ class QuizApp:
 
         for i, opcja in enumerate(p['options']):
             self.checkbuttons[i].config(text=opcja, state='normal')
-            self.checkbuttons[i].pack(anchor='w')
+            self.checkbuttons[i].pack(fill='x', pady=3, padx=20)
         for i in range(len(p['options']), 6):
             self.checkbuttons[i].pack_forget()
 
