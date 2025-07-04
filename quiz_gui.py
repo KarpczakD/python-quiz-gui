@@ -1,23 +1,13 @@
 import tkinter as tk
 from tkinter import messagebox
+import json
+import os
 import random
 import re
-import os
-import json
 
-# --- Statystyki ---
-def load_stats():
-    if os.path.exists("stats.json"):
-        with open("stats.json", "r") as f:
-            return json.load(f)
-    return {"correct": 0, "incorrect": 0, "answered": 0}
+STATE_FILE = "quiz_state.json"
 
-def save_stats(stats):
-    with open("stats.json", "w") as f:
-        json.dump(stats, f)
-
-# --- Parser markdown ---
-def load_questions_from_md(file_path):
+def parse_questions(file_path):
     with open(file_path, encoding='utf-8') as f:
         content = f.read()
 
@@ -28,119 +18,171 @@ def load_questions_from_md(file_path):
         lines = block.strip().split('\n')
         if not lines or not lines[0].strip():
             continue
-        question_text = lines[0].lstrip('# ').strip()
+        question = lines[0].lstrip('# ').strip()
         options = []
         correct_indices = []
 
         for i, line in enumerate(lines[1:]):
             m = re.match(r'- \[( |x)\] (.+)', line)
             if m:
-                checked = m.group(1) == 'x'
+                is_checked = m.group(1) == 'x'
                 option_text = m.group(2)
                 options.append(option_text)
-                if checked:
+                if is_checked:
                     correct_indices.append(i)
 
         questions.append({
-            "question": question_text,
+            "question": question,
             "options": options,
             "answer": correct_indices
         })
 
     return questions
 
-# --- GUI ---
 class QuizApp:
     def __init__(self, root, questions):
         self.root = root
-        self.root.title("Quiz App")
-        self.questions = random.sample(questions, len(questions))  # losowe pytania
-        self.current = 0
-        self.selected = []
-        self.stats = load_stats()
+        self.root.title("Azure Quiz GUI")
+        self.root.configure(bg="#eee")
+        self.original_questions = questions
+        self.questions = []
+        self.reset_question_order()
+        self.load_state()
 
-        self.question_label = tk.Label(root, text="", wraplength=600, justify="center", font=("Arial", 14), anchor="center")
-        self.question_label.pack(pady=20, fill="x")
+        self.var_checks = []
+        self.checkboxes = []
 
-        self.stats_label = tk.Label(root, text="", font=("Arial", 12))
-        self.stats_label.pack()
+        self.stats_label = tk.Label(root, text="", font=("Arial", 12), bg="#eee")
+        self.stats_label.pack(pady=5)
 
-        self.frame = tk.Frame(root)
-        self.frame.pack(pady=10)
+        self.question_label = tk.Label(root, text="", font=("Arial", 16, "bold"), wraplength=1000, justify="center", bg="#eee")
+        self.question_label.pack(pady=10)
 
-        self.chart_canvas = tk.Canvas(root, height=20)
-        self.chart_canvas.pack(pady=10, fill="x")
+        self.progress_canvas = tk.Canvas(root, height=20, bg="#eee", highlightthickness=0)
+        self.progress_canvas.pack(fill="x", padx=20, pady=10)
 
-        self.submit_btn = tk.Button(root, text="Submit", command=self.submit_answer, bg="#4CAF50", fg="white", padx=10, pady=5)
-        self.submit_btn.pack(pady=10)
+        self.options_frame = tk.Frame(root, bg="#eee")
+        self.options_frame.pack(pady=10)
 
-        self.show_question()
+        self.submit_btn = tk.Button(root, text="Submit", command=self.check_answer, bg="#4CAF50", fg="white", font=("Arial", 12), padx=20, pady=5)
+        self.submit_btn.pack(pady=5)
 
-    def show_question(self):
-        self.clear_options()
-        question = self.questions[self.current]
-        self.question_label.config(text=question["question"])
+        self.reset_btn = tk.Button(root, text="Reset Quiz", command=self.reset_quiz, bg="#f44336", fg="white", font=("Arial", 12), padx=20, pady=5)
+        self.reset_btn.pack(pady=5)
 
-        self.selected = [tk.IntVar() for _ in question["options"]]
-        self.checkbuttons = []
+        self.load_question()
 
-        for i, option in enumerate(question["options"]):
-            cb = tk.Checkbutton(self.frame, text=option, variable=self.selected[i], font=("Arial", 12), anchor="w", wraplength=550)
-            cb.pack(anchor="w", fill="x")
-            self.checkbuttons.append(cb)
+    def reset_question_order(self):
+        self.questions = self.original_questions[:]
+        random.shuffle(self.questions)
 
-        self.update_stats_labels()
-        self.draw_chart()
+    def reset_quiz(self):
+        if os.path.exists(STATE_FILE):
+            os.remove(STATE_FILE)
 
-    def submit_answer(self):
-        selected_indices = [i for i, var in enumerate(self.selected) if var.get()]
-        correct_indices = self.questions[self.current]["answer"]
+        self.index = 0
+        self.correct = 0
+        self.incorrect = 0
+        self.answered = 0
+        self.reset_question_order()
+        self.load_question()
 
-        self.stats["answered"] += 1
-        if set(selected_indices) == set(correct_indices):
-            self.stats["correct"] += 1
-            messagebox.showinfo("Correct", "✅ Correct answer!")
+    def load_state(self):
+        if os.path.exists(STATE_FILE):
+            with open(STATE_FILE, "r", encoding="utf-8") as f:
+                data = json.load(f)
+                self.index = data.get("index", 0)
+                self.correct = data.get("correct", 0)
+                self.incorrect = data.get("incorrect", 0)
+                self.answered = data.get("answered", 0)
         else:
-            self.stats["incorrect"] += 1
-            correct_text = "\n".join([self.questions[self.current]["options"][i] for i in correct_indices])
-            messagebox.showerror("Incorrect", f"❌ Incorrect answer.\nCorrect answer(s):\n{correct_text}")
+            self.index = 0
+            self.correct = 0
+            self.incorrect = 0
+            self.answered = 0
 
-        save_stats(self.stats)
+    def save_state(self):
+        data = {
+            "index": self.index,
+            "correct": self.correct,
+            "incorrect": self.incorrect,
+            "answered": self.answered
+        }
+        with open(STATE_FILE, "w", encoding="utf-8") as f:
+            json.dump(data, f)
 
-        self.current = (self.current + 1) % len(self.questions)
-        self.show_question()
+    def load_question(self):
+        if self.index >= len(self.questions):
+            messagebox.showinfo("Quiz", "End of quiz!")
+            return
 
-    def clear_options(self):
-        for widget in self.frame.winfo_children():
+        self.clear_widgets()
+        self.update_stats()
+        self.draw_progress()
+
+        current_q = self.questions[self.index]
+        self.question_label.config(text=current_q["question"])
+
+        self.var_checks = []
+        self.checkboxes = []
+        self.correct_count = len(current_q["answer"])
+
+        for i, option in enumerate(current_q["options"]):
+            var = tk.IntVar()
+            cb = tk.Checkbutton(self.options_frame, text=option, variable=var, font=("Arial", 12), anchor="w", bg="#eee",
+                                command=lambda idx=i: self.handle_single_select(idx))
+            cb.pack(anchor="w")
+            self.var_checks.append(var)
+            self.checkboxes.append(cb)
+
+    def handle_single_select(self, idx):
+        if self.correct_count == 1:
+            for i, var in enumerate(self.var_checks):
+                if i != idx:
+                    var.set(0)
+
+    def clear_widgets(self):
+        for widget in self.options_frame.winfo_children():
             widget.destroy()
 
-    def update_stats_labels(self):
-        self.stats_label.config(
-            text=f"Correct: {self.stats['correct']}    Incorrect: {self.stats['incorrect']}    Answered: {self.stats['answered']}",
-            anchor="center"
-        )
+    def update_stats(self):
+        self.stats_label.config(text=f"Correct: {self.correct}    Incorrect: {self.incorrect}    Answered: {self.answered}")
 
-    def draw_chart(self):
-        self.chart_canvas.delete("all")
-        total = max(1, self.stats["answered"])
-        width = self.chart_canvas.winfo_width()
-        if width == 1: width = 600  # fallback
+    def draw_progress(self):
+        self.progress_canvas.delete("all")
+        total = max(self.answered, 1)
+        width = self.progress_canvas.winfo_width()
+        correct_width = int((self.correct / total) * width)
+        incorrect_width = int((self.incorrect / total) * width)
 
-        correct_width = int((self.stats["correct"] / total) * width)
-        incorrect_width = int((self.stats["incorrect"] / total) * width)
+        self.progress_canvas.create_rectangle(0, 0, correct_width, 20, fill="green", outline="")
+        self.progress_canvas.create_rectangle(correct_width, 0, correct_width + incorrect_width, 20, fill="red", outline="")
+        self.root.update_idletasks()
 
-        self.chart_canvas.create_rectangle(0, 0, correct_width, 20, fill="green")
-        self.chart_canvas.create_rectangle(correct_width, 0, correct_width + incorrect_width, 20, fill="red")
+    def check_answer(self):
+        selected = [i for i, var in enumerate(self.var_checks) if var.get() == 1]
+        correct = self.questions[self.index]["answer"]
 
+        if sorted(selected) == sorted(correct):
+            self.correct += 1
+        else:
+            self.incorrect += 1
+            correct_answers = ", ".join([self.questions[self.index]["options"][i] for i in correct])
+            messagebox.showinfo("Correct Answer", f"The correct answer(s): {correct_answers}")
+
+        self.answered += 1
+        self.index += 1
+        self.save_state()
+        self.load_question()
 
 if __name__ == "__main__":
-    import tkinter.filedialog as fd
-    path = fd.askopenfilename(title="Select a quiz .md file", filetypes=[("Markdown files", "*.md")])
-    if not path:
-        print("No file selected.")
-        exit()
+    import sys
+    if len(sys.argv) < 2:
+        print("Usage: python quiz_gui.py <path_to_markdown_file>")
+        sys.exit(1)
 
-    questions = load_questions_from_md(path)
+    file_path = sys.argv[1]
+    questions = parse_questions(file_path)
 
     root = tk.Tk()
     app = QuizApp(root, questions)
